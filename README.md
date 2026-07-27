@@ -87,6 +87,7 @@ access emergency information, shelters, weather updates, AI guidance, and emerge
 - Weather API
 - Geolocation Services
 
+
 ---
 
 # Project Structure
