@@ -8,6 +8,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/style.css" />
 <link rel="stylesheet" href="css/responsive.css" />
+<script>
+  // Set this to your Google OAuth Client ID (from Google Cloud Console ->
+  // APIs & Services -> Credentials) to enable real Google Sign-In.
+  // Leave blank to keep the button disabled with a friendly message.
+  window.RESQ_GOOGLE_CLIENT_ID = "";
+</script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 <a href="#main" class="skip-link">Skip to content</a>
@@ -60,6 +67,10 @@
       <button type="button" class="btn-google" id="googleLoginBtn">
         <span id="googleIcon"></span> Continue with Google
       </button>
+      <!-- Google's real Sign-In button renders here, invisible — our
+           styled button above forwards its click here so the visual
+           design stays exactly as-is while the real OAuth flow runs. -->
+      <div id="googleRealBtn" style="position:absolute; opacity:0; pointer-events:none; height:0; overflow:hidden;"></div>
 
       <p class="mt-6 text-secondary" style="text-align:center; font-size:0.88rem;" id="authToggleRow">
         Don't have an account? <a href="#" id="authToggleLink" style="color:var(--color-secondary); font-weight:600;">Sign up</a>
@@ -69,7 +80,7 @@
 </div>
 
 <script src="js/icons.js"></script>
-<script src="js/api.js?v=2"></script>
+<script src="js/api.js"></script>
 <script>
   document.getElementById("visualLogo").innerHTML = icon("shieldCheck", 30);
   document.getElementById("formLogo").innerHTML = icon("shieldCheck", 24);
@@ -159,14 +170,56 @@
   });
 
   document.getElementById("googleLoginBtn").addEventListener("click", async function () {
-    try {
-      // Architecture stub: a real integration exchanges a Google ID token here
-      // (e.g. via Google Identity Services) before calling api.googleLogin(idToken).
-      await api.googleLogin("stub-id-token");
-    } catch (err) {
-      api.showToast(err.message || "Google login isn't configured on this server yet.", "warning");
+    if (!window.RESQ_GOOGLE_CLIENT_ID) {
+      api.showToast(
+        "Google login isn't configured yet — set window.RESQ_GOOGLE_CLIENT_ID in login.html.",
+        "warning"
+      );
+      return;
+    }
+    // Forward the click to Google's real (invisible) button, which
+    // triggers the actual OAuth consent flow and calls handleGoogleCredential.
+    const realBtn = document.querySelector("#googleRealBtn div[role='button']");
+    if (realBtn) {
+      realBtn.click();
+    } else {
+      api.showToast("Google Sign-In is still loading — try again in a moment.", "warning");
     }
   });
+
+  async function handleGoogleCredential(response) {
+    try {
+      const res = await api.googleLogin(response.credential);
+      tokenStore.set(res.data.tokens.access_token, res.data.tokens.refresh_token, res.data.user);
+      api.showToast(`Welcome, ${res.data.user.name.split(" ")[0]}!`, "success");
+      setTimeout(() => (window.location.href = "dashboard.html"), 500);
+    } catch (err) {
+      api.showToast(err.message || "Google sign-in failed. Please try again.", "error");
+    }
+  }
+
+  function initGoogleSignIn() {
+    if (!window.RESQ_GOOGLE_CLIENT_ID || !window.google || !window.google.accounts) return;
+    google.accounts.id.initialize({
+      client_id: window.RESQ_GOOGLE_CLIENT_ID,
+      callback: handleGoogleCredential,
+    });
+    // Render the real button invisibly — our styled button forwards clicks to it.
+    google.accounts.id.renderButton(document.getElementById("googleRealBtn"), {
+      type: "standard",
+      theme: "outline",
+      size: "large",
+    });
+  }
+
+  // The GIS script loads async/defer, so poll briefly until it's ready.
+  (function waitForGoogleSDK(attemptsLeft = 20) {
+    if (window.google && window.google.accounts) {
+      initGoogleSignIn();
+    } else if (attemptsLeft > 0) {
+      setTimeout(() => waitForGoogleSDK(attemptsLeft - 1), 250);
+    }
+  })();
 </script>
 </body>
 </html>
