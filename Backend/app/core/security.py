@@ -1,26 +1,45 @@
 """
-Security primitives: password hashing (bcrypt via passlib) and JWT
-access/refresh token creation & verification.
+Security primitives: password hashing (bcrypt, called directly) and
+JWT access/refresh token creation & verification.
+
+NOTE: password hashing intentionally does NOT go through passlib.
+passlib==1.7.4's bcrypt backend reads `bcrypt.__about__.__version__`,
+an attribute bcrypt>=4.1 removed. That mismatch doesn't raise loudly —
+it makes passlib's CryptContext.verify() silently return False for
+every password while hash() keeps working, so registration succeeds
+but login always fails with "Invalid email or password". Calling
+bcrypt directly avoids that landmine entirely.
 """
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 from app.core.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 # ---------- Password hashing ----------
+# bcrypt has a hard 72-byte input limit and raises on longer input
+# (passlib used to truncate silently) — truncate here so long
+# passwords don't crash registration/login instead of just being
+# less effective past 72 bytes, same practical behavior either way.
+def _bcrypt_safe_bytes(password: str) -> bytes:
+    return password.encode("utf-8")[:72]
+
+
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    hashed = bcrypt.hashpw(_bcrypt_safe_bytes(password), bcrypt.gensalt())
+    return hashed.decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(_bcrypt_safe_bytes(plain_password), hashed_password.encode("utf-8"))
+    except ValueError:
+        # Malformed/legacy hash (e.g. old passlib-produced hash) — treat as no match.
+        return False
 
 
 # ---------- JWT ----------

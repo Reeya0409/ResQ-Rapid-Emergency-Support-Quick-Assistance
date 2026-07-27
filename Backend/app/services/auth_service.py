@@ -137,7 +137,39 @@ async def authenticate_google_user(db: AsyncIOMotorDatabase, id_token: str) -> d
     if not settings.GOOGLE_CLIENT_ID:
         raise HTTPException(
             status.HTTP_501_NOT_IMPLEMENTED,
-            "Google login is not configured on this server yet",
+            "Google login isn't configured on this server yet — set GOOGLE_CLIENT_ID in .env",
         )
-    # TODO: verify id_token with google.oauth2.id_token.verify_oauth2_token
-    raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "Google login verification not yet implemented")
+
+    from google.auth.transport import requests as google_requests
+    from google.oauth2 import id_token as google_id_token
+
+    try:
+        claims = google_id_token.verify_oauth2_token(
+            id_token, google_requests.Request(), settings.GOOGLE_CLIENT_ID
+        )
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid Google sign-in token") from exc
+
+    email = claims.get("email")
+    if not email:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Google account has no email on file")
+    if not claims.get("email_verified", False):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Google email is not verified")
+
+    user = await db.users.find_one({"email": email.lower()})
+    if user:
+        return user
+
+    name = claims.get("name") or email.split("@")[0]
+    doc = new_user_document(
+        name=name,
+        email=email,
+        hashed_password=None,
+        auth_provider="google",
+    )
+    doc["is_verified"] = True
+    doc["avatar_url"] = claims.get("picture", "")
+    result = await db.users.insert_one(doc)
+    doc["_id"] = result.inserted_id
+    logger.info("New user registered via Google: {}", email)
+    return doc
