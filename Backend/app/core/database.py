@@ -20,8 +20,8 @@ mongodb = MongoDB()
 
 
 async def connect_to_mongo() -> None:
-    logger.info("Connecting to MongoDB at {}", settings.MONGO_URI)
-    mongodb.client = AsyncIOMotorClient(settings.MONGO_URI)
+    logger.info("Connecting to MongoDB at {}", settings.MONGODB_URI)
+    mongodb.client = AsyncIOMotorClient(settings.MONGODB_URI)
     mongodb.db = mongodb.client[settings.MONGO_DB_NAME]
     await _ensure_indexes(mongodb.db)
     logger.success("MongoDB connection established")

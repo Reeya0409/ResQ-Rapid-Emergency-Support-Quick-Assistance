@@ -19,10 +19,14 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
 
     # --- CORS ---
-    CORS_ORIGINS: List[str] = ["http://localhost:5500", "http://127.0.0.1:5500"]
+    CORS_ORIGINS: List[str] = [
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+    "https://resq-frontend-m3gq.onrender.com",
+]
 
     # --- MongoDB ---
-    MONGO_URI: str = "mongodb://localhost:27017"
+    MONGODB_URI: str = "mongodb://localhost:27017"
     MONGO_DB_NAME: str = "resq"
 
     # --- JWT ---

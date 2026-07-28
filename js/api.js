@@ -6,9 +6,9 @@
    and a consistent error shape.
    ============================================================ */
 
-const API_BASE_URL = window.RESQ_API_BASE_URL || "http://localhost:8000/api/v1";
-
-const TOKEN_KEYS = {
+const API_BASE_URL =
+  window.RESQ_API_BASE_URL ||
+  "https://resq-rapid-emergency-support-quick.onrender.com/api/v1";const TOKEN_KEYS = {
   access: "resq_access_token",
   refresh: "resq_refresh_token",
   user: "resq_user",

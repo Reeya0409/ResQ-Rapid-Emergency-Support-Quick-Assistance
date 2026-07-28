@@ -6,6 +6,13 @@ access emergency information, shelters, weather updates, AI guidance, and emerge
 
 ---
 
+# Deployment
+
+Live Application:  
+[ResQ Live Demo](https://resq-frontend-m3gq.onrender.com)
+
+---
+
 # Features
 
 ## Authentication
