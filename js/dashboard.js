@@ -119,9 +119,11 @@ async function loadNearbyPlaces(lat, lon) {
 
     try {
 
-        const data = await fetchOverpass(query);
+        const response = await fetch(
+    `${API_BASE_URL}/nearby?lat=${lat}&lon=${lon}`
+);
 
-        console.log(data.elements.length);
+const data = await response.json();
 
         data.elements.forEach(place => {
 
